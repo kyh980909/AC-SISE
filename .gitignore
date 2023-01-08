@@ -1,0 +1,7 @@
+*.xlsx
+*.zip
+/wandb
+/.vscode
+/.ipynb_checkpoints
+/vgg16_voc2007
+/model
