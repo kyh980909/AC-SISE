@@ -5,3 +5,5 @@
 /.ipynb_checkpoints
 /vgg16_voc2007
 /model
+*.pptx
+__pycache__
