@@ -3,7 +3,8 @@
 /wandb
 /.vscode
 /.ipynb_checkpoints
-/vgg16_voc2007
 /model
 *.pptx
 __pycache__
+/content
+/data
