@@ -7,7 +7,7 @@ from PIL import Image
 from skimage.metrics import structural_similarity as ssim
 
 class SISE():
-    def __init__(self, model, model_name, img_path, class_idx, grouping_thr=0.5) -> None:
+    def __init__(self, model, model_name, img_path, class_idx, grouping_thr=0.5, detail=0) -> None:
         self.model = model
         self.input_size = model.input_shape[1:3]
         self.model_name = model_name
@@ -24,6 +24,7 @@ class SISE():
         self.result = None
         self.group_bbox = {}
         self.grouping_thr = grouping_thr
+        self.detail=detail
     
     def feature_extractor(self):
         if self.model_name=='vgg16':
@@ -43,7 +44,7 @@ class SISE():
 
         elif self.model_name=='resnet50':
             # Feature map을 추출할 layer 결정
-            block = [2, 38, 80, 142, 174]
+            block = [4, 38, 80, 142, 174]
             outputs = [self.model.layers[i].output for i in block]
             feature_map_extraction_model = Model([self.model.inputs], outputs)
 
@@ -91,12 +92,14 @@ class SISE():
             # 필터링 된 피쳐맵 수 비교
             sum1 = sum2 = 0
             for k1, k2 in zip(avg_grads.values(), filtered_feature_maps.values()):
-                # print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+                if self.detail == 1:
+                    print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
                 sum1 += len(k1)
                 sum2 += k2.shape[-1]
 
-            # print('\nTotal')
-            # print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+            if self.detail == 1:
+                print('\nTotal')
+                print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
 
             self.filtered_feature_maps = filtered_feature_maps
             self.total_reduction_rate = (sum2-sum1)/sum1*100
@@ -132,12 +135,14 @@ class SISE():
             # 필터링 된 피쳐맵 수 비교
             sum1 = sum2 = 0
             for k1, k2 in zip(avg_grads.values(), filtered_feature_maps.values()):
-                # print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+                if self.detail == 1:
+                    print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
                 sum1 += len(k1)
                 sum2 += k2.shape[-1]
 
-            # print('\nTotal')
-            # print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+            if self.detail == 1:
+                print('\nTotal')
+                print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
 
             self.filtered_feature_maps = filtered_feature_maps
             self.total_reduction_rate = (sum2-sum1)/sum1*100
@@ -191,12 +196,14 @@ class SISE():
         # 필터링 된 피쳐맵 수 비교
         sum1 = sum2 = 0
         for k1, k2 in zip(self.avg_grads.values(), not_zero_feature_maps.values()):
-            print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+            if self.detail == 1:
+                print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
             sum1 += len(k1)
             sum2 += k2.shape[-1]
 
-        print('\nTotal')
-        print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)\n')
+        if self.detail == 1:
+            print('\nTotal')
+            print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)\n')
 
         self.filtered_feature_maps = not_zero_feature_maps
 
@@ -263,12 +270,13 @@ class SISE():
         # 필터링 된 피쳐맵 수 비교
         sum1 = sum2 = 0
         for k1, k2 in zip(self.avg_grads.values(), self.postprocessed_feature_maps.values()):
-            print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+            if self.detail == 1:
+                print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
             sum1 += len(k1)
             sum2 += k2.shape[-1]
-
-        print('\nTotal')
-        print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+        if self.detail == 1:
+            print('\nTotal')
+            print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
         self.total_reduction_rate = (sum2-sum1)/sum1*100
 
     def new_attribution_masks_compress1(self, mode):
@@ -324,12 +332,14 @@ class SISE():
         # 필터링 된 피쳐맵 수 비교
         sum1 = sum2 = 0
         for k1, k2 in zip(self.avg_grads.values(), self.postprocessed_feature_maps.values()):
-            print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+            if self.detail == 1:
+                print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
             sum1 += len(k1)
             sum2 += k2.shape[-1]
 
-        print('\nTotal')
-        print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+        if self.detail == 1:
+            print('\nTotal')
+            print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
         self.total_reduction_rate = (sum2-sum1)/sum1*100
 
     def new_attribution_masks_compress2(self):
@@ -377,12 +387,14 @@ class SISE():
         # 필터링 된 피쳐맵 수 비교
         sum1 = sum2 = 0
         for k1, k2 in zip(self.avg_grads.values(), self.postprocessed_feature_maps.values()):
-            print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+            if self.detail == 1:
+                print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
             sum1 += len(k1)
             sum2 += k2.shape[-1]
-
-        print('\nTotal')
-        print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+            
+        if self.detail == 1:
+            print('\nTotal')
+            print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
         self.total_reduction_rate = (sum2-sum1)/sum1*100
 
     def generate_layer_visualization_map(self):
