@@ -35,6 +35,18 @@ class SISE():
             block = [4, 38, 80, 142, 174]
         elif self.model_name=='resnet152':
             block = [4, 38, 120, 482, 514]
+            outputs = [self.model.layers[i].output for i in block]
+            feature_map_extraction_model = Model([self.model.inputs], outputs)
+
+            # Layer별 feature map 추출
+            feature_maps = {}
+            feature_maps_list = feature_map_extraction_model.predict(self.input_img)
+
+            for i, fmap in enumerate(feature_maps_list):
+                feature_maps[f'conv{i}'] = tf.convert_to_tensor(np.squeeze(fmap))
+
+            self.feature_maps = feature_maps
+
         else:
             assert print('Not support')
 
@@ -56,10 +68,90 @@ class SISE():
         # conv layer별 피쳐맵과 confidence score(softmax 값)의 gradient 계산
         if self.model_name == 'vgg16':
             block = [1, 4, 8, 12, 16, 18]
+            outputs = [self.model.layers[i].output for i in block]
+
+            grad_model = Model([self.model.inputs], outputs)
+
+            with tf.GradientTape(persistent=True) as tape:
+                *conv_outputs, pred = grad_model(self.input_img)
+                class_channel = pred[:, self.class_idx]
+
+            grads = {}
+            for i, conv in enumerate(conv_outputs):
+                grads[f'conv{i}'] = tape.gradient(class_channel, conv)[0]
+
+            # 피쳐맵의 평균 gradient 계산
+            avg_grads = {}
+            for k, v in grads.items():
+                avg_grads[k] = tf.reduce_mean(v, axis=(0,1))
+
+            self.avg_grads = avg_grads
+
+            # 피쳐맵의 평균 gradient가 0이 넘는 피쳐맵만 필터링
+            filtered_feature_maps = {}
+            for k, v in avg_grads.items():
+                transpose = tf.transpose(self.feature_maps[k], perm=[2,0,1])[v>0] # 필터링 용이를 위해 transpose
+                filtered_feature_maps[k] = tf.transpose(transpose, perm=[1,2,0]) # transpose 다시 되돌리기
+
+            # 필터링 된 피쳐맵 수 비교
+            sum1 = sum2 = 0
+            for k1, k2 in zip(avg_grads.values(), filtered_feature_maps.values()):
+                if self.detail == 1:
+                    print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+                sum1 += len(k1)
+                sum2 += k2.shape[-1]
+
+            if self.detail == 1:
+                print('\nTotal')
+                print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+
+            self.filtered_feature_maps = filtered_feature_maps
+            self.total_reduction_rate = (sum2-sum1)/sum1*100
+
         elif self.model_name == 'resnet50':
             block = [2, 38, 80, 142, 174, 176]
         elif self.model_name=='resnet152':
             block = [4, 38, 120, 482, 514, 516]
+            outputs = [self.model.layers[i].output for i in block]
+
+            grad_model = Model([self.model.inputs], outputs)
+
+            with tf.GradientTape(persistent=True) as tape:
+                *conv_outputs, pred = grad_model(self.input_img)
+                class_channel = pred[:, self.class_idx]
+
+            grads = {}
+            for i, conv in enumerate(conv_outputs):
+                grads[f'conv{i}'] = tape.gradient(class_channel, conv)[0]
+
+            # 피쳐맵의 평균 gradient 계산
+            avg_grads = {}
+            for k, v in grads.items():
+                avg_grads[k] = tf.reduce_mean(v, axis=(0,1))
+
+            self.avg_grads = avg_grads
+
+            # 피쳐맵의 평균 gradient가 0이 넘는 피쳐맵만 필터링
+            filtered_feature_maps = {}
+            for k, v in avg_grads.items():
+                transpose = tf.transpose(self.feature_maps[k], perm=[2,0,1])[v>0] # 필터링 용이를 위해 transpose
+                filtered_feature_maps[k] = tf.transpose(transpose, perm=[1,2,0]) # transpose 다시 되돌리기
+
+            # 필터링 된 피쳐맵 수 비교
+            sum1 = sum2 = 0
+            for k1, k2 in zip(avg_grads.values(), filtered_feature_maps.values()):
+                if self.detail == 1:
+                    print(f'{len(k1)} -> {k2.shape[-1]}, {len(k1)-k2.shape[-1]}개 감소 (감소율: {(k2.shape[-1]-len(k1))/len(k1)*100}%)')
+                sum1 += len(k1)
+                sum2 += k2.shape[-1]
+
+            if self.detail == 1:
+                print('\nTotal')
+                print(f'{sum1} -> {sum2}, {sum1-sum2}개 감소 (감소율: {(sum2-sum1)/sum1*100}%)')
+
+            self.filtered_feature_maps = filtered_feature_maps
+            self.total_reduction_rate = (sum2-sum1)/sum1*100
+        
         else:
             assert print('Not support')
         
